@@ -1,0 +1,13 @@
+# Virtual environments
+midi_controller_env/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
