@@ -9,9 +9,14 @@
     "y_cc": 44,
     "channel": 1
   },
-  "KorgVolcaFilter":{
+  "KorgVolcaKeysFilter":{
     "x_cc": 45,
     "y_cc": 44,
+    "channel": 1
+  },
+  "KorgVolcaKeysDelay":{
+    "x_cc": 52,
+    "y_cc": 53,
     "channel": 1
   }
 }
