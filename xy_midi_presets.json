@@ -8,5 +8,10 @@
     "x_cc": 43,
     "y_cc": 44,
     "channel": 1
+  },
+  "KorgVolcaFilter":{
+    "x_cc": 45,
+    "y_cc": 44,
+    "channel": 1
   }
 }
