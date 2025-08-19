@@ -14,3 +14,4 @@ This python programme uses PyGame to create an XY pad that sends MIDI CC message
 - Customizable MIDI CC numbers
 - MIDI device and channel selection
 - Real-time MIDI output
+- Reading and writing presets
