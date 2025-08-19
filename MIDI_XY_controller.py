@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 import pygame.midi
 import threading
 import time
+import json
+import os
 
 class XYMidiController:
     def __init__(self):
@@ -18,6 +20,10 @@ class XYMidiController:
         self.current_y_value = 64  # Current Y MIDI value (0-127)
         self.is_dragging = False
         
+        # Preset management
+        self.presets_file = "xy_midi_presets.json"
+        self.presets = self.load_presets()
+        
         # Setup UI
         self.setup_ui()
         self.setup_midi()
@@ -25,7 +31,7 @@ class XYMidiController:
     def setup_ui(self):
         self.root = tk.Tk()
         self.root.title("XY MIDI Controller")
-        self.root.geometry("600x550")
+        self.root.geometry("600x650")
         self.root.configure(bg='#f0f0f0')
         
         # Main frame
@@ -93,9 +99,32 @@ class XYMidiController:
         self.channel_combo.grid(row=1, column=1, padx=5, sticky=tk.W)
         self.channel_combo.bind('<<ComboboxSelected>>', self.on_midi_channel_change)
         
+        # Preset Management Frame
+        preset_frame = ttk.LabelFrame(main_frame, text="Presets", padding="10")
+        preset_frame.grid(row=3, column=0, columnspan=2, pady=(0, 10), sticky=(tk.W, tk.E))
+        
+        # Preset selection
+        ttk.Label(preset_frame, text="Preset:").grid(row=0, column=0, padx=5, sticky=tk.W)
+        self.preset_var = tk.StringVar()
+        self.preset_combo = ttk.Combobox(preset_frame, textvariable=self.preset_var,
+                                        state="readonly", width=25)
+        self.preset_combo.grid(row=0, column=1, padx=5)
+        self.preset_combo.bind('<<ComboboxSelected>>', self.load_selected_preset)
+        
+        # Preset buttons
+        ttk.Button(preset_frame, text="Load", 
+                  command=self.load_selected_preset).grid(row=0, column=2, padx=5)
+        ttk.Button(preset_frame, text="Save", 
+                  command=self.show_save_preset_dialog).grid(row=0, column=3, padx=5)
+        ttk.Button(preset_frame, text="Delete", 
+                  command=self.delete_selected_preset).grid(row=0, column=4, padx=5)
+        
+        # Update preset list
+        self.update_preset_list()
+        
         # Status frame
         status_frame = ttk.Frame(main_frame)
-        status_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        status_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E))
         
         # Status labels
         self.status_label = ttk.Label(status_frame, text="Status: Ready")
@@ -256,6 +285,134 @@ class XYMidiController:
         except ValueError:
             messagebox.showerror("Invalid CC", "Please enter a valid number")
             self.y_cc_var.set(str(self.y_cc))
+    
+    def load_presets(self):
+        """Load presets from JSON file"""
+        default_presets = {
+            "SH01A filter": {"x_cc": 74, "y_cc": 71, "channel": 1}
+        }
+        
+        try:
+            if os.path.exists(self.presets_file):
+                with open(self.presets_file, 'r') as f:
+                    presets = json.load(f)
+                # Ensure default preset exists
+                if "SH01A filter" not in presets:
+                    presets["SH01A filter"] = default_presets["SH01A filter"]
+                return presets
+            else:
+                # Create file with default presets
+                self.save_presets_to_file(default_presets)
+                return default_presets
+        except Exception as e:
+            print(f"Error loading presets: {e}")
+            return default_presets
+    
+    def save_presets_to_file(self, presets=None):
+        """Save presets to JSON file"""
+        try:
+            presets_to_save = presets if presets is not None else self.presets
+            with open(self.presets_file, 'w') as f:
+                json.dump(presets_to_save, f, indent=2)
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save presets: {str(e)}")
+    
+    def update_preset_list(self):
+        """Update the preset combobox with current presets"""
+        preset_names = list(self.presets.keys())
+        self.preset_combo['values'] = preset_names
+        if preset_names and not self.preset_var.get():
+            self.preset_combo.current(0)
+    
+    def load_selected_preset(self, event=None):
+        """Load the selected preset"""
+        preset_name = self.preset_var.get()
+        if preset_name and preset_name in self.presets:
+            preset = self.presets[preset_name]
+            
+            # Update CC values
+            self.x_cc = preset['x_cc']
+            self.y_cc = preset['y_cc']
+            self.x_cc_var.set(str(self.x_cc))
+            self.y_cc_var.set(str(self.y_cc))
+            
+            # Update channel
+            channel = preset.get('channel', 1)
+            self.channel_var.set(str(channel))
+            self.midi_channel = channel - 1  # Convert to 0-indexed
+            
+            self.status_label.config(text=f"Status: Loaded preset '{preset_name}'")
+    
+    def show_save_preset_dialog(self):
+        """Show dialog to save current settings as preset"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Save Preset")
+        dialog.geometry("300x120")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.geometry("+%d+%d" % (self.root.winfo_rootx() + 150, 
+                                   self.root.winfo_rooty() + 100))
+        
+        ttk.Label(dialog, text="Preset Name:").pack(pady=10)
+        
+        name_var = tk.StringVar()
+        name_entry = ttk.Entry(dialog, textvariable=name_var, width=30)
+        name_entry.pack(pady=5)
+        name_entry.focus()
+        
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        
+        def save_preset():
+            name = name_var.get().strip()
+            if not name:
+                messagebox.showerror("Error", "Please enter a preset name")
+                return
+            
+            # Save current settings
+            self.presets[name] = {
+                'x_cc': self.x_cc,
+                'y_cc': self.y_cc,
+                'channel': int(self.channel_var.get())
+            }
+            
+            self.save_presets_to_file()
+            self.update_preset_list()
+            
+            # Select the newly saved preset
+            self.preset_var.set(name)
+            
+            self.status_label.config(text=f"Status: Saved preset '{name}'")
+            dialog.destroy()
+        
+        def cancel():
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="Save", command=save_preset).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.LEFT, padx=5)
+        
+        # Bind Enter key to save
+        dialog.bind('<Return>', lambda e: save_preset())
+        name_entry.bind('<Return>', lambda e: save_preset())
+    
+    def delete_selected_preset(self):
+        """Delete the selected preset"""
+        preset_name = self.preset_var.get()
+        if not preset_name:
+            messagebox.showwarning("Warning", "Please select a preset to delete")
+            return
+        
+        if preset_name == "SH01A filter":
+            messagebox.showwarning("Warning", "Cannot delete the default preset")
+            return
+        
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete preset '{preset_name}'?"):
+            del self.presets[preset_name]
+            self.save_presets_to_file()
+            self.update_preset_list()
+            self.status_label.config(text=f"Status: Deleted preset '{preset_name}'")
     
     def run(self):
         """Start the application"""
