@@ -1,0 +1,12 @@
+{
+  "SH01A filter": {
+    "x_cc": 74,
+    "y_cc": 71,
+    "channel": 1
+  },
+  "KorgMonologueFilter": {
+    "x_cc": 43,
+    "y_cc": 44,
+    "channel": 1
+  }
+}
