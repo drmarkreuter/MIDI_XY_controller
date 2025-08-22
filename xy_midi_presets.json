@@ -18,5 +18,10 @@
     "x_cc": 52,
     "y_cc": 53,
     "channel": 1
+  },
+  "WavestationJoystick":{
+    "x_cc": 16,
+    "y_cc": 17,
+    "channel": 1
   }
 }
